@@ -2,28 +2,104 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1.0">
-  <title>Breathe With Me</title>
-  <style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'">
+<title>Breathe With Me</title>
+
+    <style>
     body {
-      margin: 0;
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      background: #111827;
-      color: #f9fafb;
-      font-family: Arial, sans-serif;
-      text-align: center;
+        background: #111827;
+        color: #f9fafb;
+        font-family: Arial, sans-serif;
+        text-align: center;
+        padding: 30px;
+    }
+
+    main {
+        max-width: 650px;
+        margin: auto;
+    }
+
+    video {
+        display: block;
+        width: 100%;
+        margin: 20px 0;
+        border-radius: 12px;
+        background: #000;
+    }
+
+    button, input {
+        padding: 12px;
+        margin: 8px 4px;
+    }
+
+    input {
+         min-width: 250px;
+    }
+
+    .readings {
+        display: flex;
+        justify-content: space-around;
+        margin: 24px 0;
+    }
+
+    .value {
+        font-size: 32px;
+        font-weight: bold;
+    }
+
+    .note {
+        color: #b8c0ce;
+        font-size: 14px;
     }
   </style>
 </head>
+
 <body>
   <main>
     <h1>Breathe With Me</h1>
-    <p>Your personal breathing companion</p>
-    <p>Electron setup successful!</p>
+    <p>Real-time breathing companion</p>
+    <p class="note">
+      Camera access starts only after you click Start.
+      Measurements are kept in memory.
+      SDK telemetry is disabled.
+      Presage authentication still requires a network
+      connection.
+    </p>
+
+    <label for="api-key">Presage API key</label>
+    <input id="api-key" type="password" placeholder="Enter API key for this session" autocomplete="off">
+
+    <div>
+      <button id="start">Allow Camera & Start</button>
+      <button id="stop" disabled>Stop</button>
+    </div>
+
+    <p id="status">Ready to start</p>
+    <p id="validation">Waiting for measurement</p>
+
+    <video id="preview" autoplaymuted playsinline> </video>
+
+    <div class="readings">
+      <div>
+        <p>Breathing Rate</p>
+        <div class="value" id="breathing">—</div>
+        <small>breaths/min</small>
+      </div>
+
+      <div>
+        <p>Pulse Rate</p>
+        <div class="value" id="pulse">—</div>
+        <small>BPM</small>
+      </div>
+    </div>
+
+    <p class="note">
+      General wellness tool, not a medical device.
+    </p>
   </main>
+
+  <script src="./dist/renderer.bundle.js"></script>
 </body>
 </html>

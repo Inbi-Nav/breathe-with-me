@@ -1,6 +1,6 @@
 
 const path = require('node:path');
-const  {app, BrowserWindow} = require('electron');
+const  {app, BrowserWindow, session} = require('electron');
 const {bindSmartSpectraIpc} = require('@smartspectra/node-sdk/main');
 
 function createWindow() {
@@ -17,7 +17,7 @@ function createWindow() {
         sandbox: true
     }
   });
-  
+
     bindSmartSpectraIpc(win);
     win.webContents.setWindowOpenHandler(() => ({
         action: 'deny'
@@ -31,7 +31,15 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  createWindow();
+    session.defaultSession.setPermissionRequestHandler(
+        (webContents, permission, callback, details) => {
+            const url = details?.requestingUrl || webContents.getURL();
+            const mediaTypes = details?.mediaTypes || [];
+            const isLocalPage = url.startsWith('file://');
+            const isCamera = mediaTypes.length === 1 && mediaTypes[0] === 'video';
+            callback( permission === 'media' && isLocalPage && isCamera);
+        }
+    ); createWindow();
 });
 
 app.on('window-all-closed', () => {
