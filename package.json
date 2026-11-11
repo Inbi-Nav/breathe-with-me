@@ -1,0 +1,27 @@
+{
+  "name": "breathe-with-me",
+  "version": "1.0.0",
+  "description": "A desktop wellness app that shows yout live breathing and pulse, measured from your webcam with Presage SmartSpectra SDK.",
+  "main": "electron/main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "electron ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Inbi-Nav/breathe-with-me.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Inbi-Nav/breathe-with-me/issues"
+  },
+  "homepage": "https://github.com/Inbi-Nav/breathe-with-me#readme",
+  "dependencies": {
+    "@smartspectra/node-sdk": "^3.5.0"
+  },
+  "devDependencies": {
+    "electron": "^45.3.0"
+  }
+}
