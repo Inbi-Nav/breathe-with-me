@@ -106,6 +106,42 @@
   background: #000;
 }
 
+
+.orb-container {
+  width: 280px;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 36px;
+}
+
+.breathing-orb {
+  width: 190px;
+  height: 190px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 30%,
+    #e0f8ef 0%,
+    #9ad9cc 55%,
+    #569e9e 100%
+  );
+
+  transform: scale(1);
+  transition: transform 180ms ease-out;
+  will-change: transform;
+}
+
+.orb-caption {
+  color: #a4d9cc;
+  font-size: 13px;
+  text-align: center;
+  margin: 0;
+}
+
+
 @media (max-width: 600px) {
   .app {
     padding: 28px 16px;

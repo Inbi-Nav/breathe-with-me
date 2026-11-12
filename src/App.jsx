@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSmartSpectra } from './hooks/useSmartSpectra';
 import './App.css';
+import BreathingOrb from './components/BreathingOrb.jsx';
 
 function App() {
   const [apiKey, setApiKey] = useState('');
@@ -13,6 +14,7 @@ function App() {
     hint,
     breathingRate,
     pulseRate,
+    breathingTrace,
     stream,
     error,
     startSession,
@@ -53,9 +55,7 @@ function App() {
 
       <main className="app-content">
         <section className="session">
-          <div className="orb-container">
-            <div className="breathing-orb" />
-          </div>
+          <BreathingOrb trace={breathingTrace} isRunning={status === 'running'}/>
 
           <h2>Your breathing, visualized.</h2>
 
