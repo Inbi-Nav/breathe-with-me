@@ -31,25 +31,6 @@ export function timeOfDay(date = new Date()) {
   return 'evening';
 }
 
-const QUOTES = [
-  'Slow is smooth, and smooth is steady.',
-  'One calm breath is a small gift to yourself.',
-  'You do not have to hurry to get somewhere good.',
-  'Every breath is a fresh start.',
-  'Small habits, kept gently, change a whole week.',
-  'Rest is part of getting stronger.',
-  'Being kind to yourself counts as exercise too.',
-  'A quiet minute can change the whole day.',
-  'Showing up today is already the win.',
-  'Breathe in what you need. Breathe out what you do not.'
-];
-
-function pickQuote(id) {
-  let h = 0;
-  for (const c of String(id)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return QUOTES[h % QUOTES.length];
-}
-
 const round = (v) => Math.round(v);
 const isBad = (lvl) => lvl && !['normal', 'slightly_low', 'low'].includes(lvl);
 

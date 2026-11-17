@@ -1,5 +1,4 @@
 import Guide from './Guide';
-import { ArrowLeftIcon } from './Icons';
 import { coherenceLabel } from '../lib/sessionAnalysis';
 import { historyMessage } from '../lib/guideScript';
 import { formatDuration, formatReading, formatWhen } from '../lib/format';
@@ -10,7 +9,7 @@ export default function HistoryScreen({ sessions, onOpen, onBack, voice }) {
       <header className="summary-head">
         <h1>Past sessions</h1>
         <button type="button" className="btn btn-outline btn-icon" onClick={onBack}>
-          <ArrowLeftIcon /> Back
+          Back
         </button>
       </header>
 
