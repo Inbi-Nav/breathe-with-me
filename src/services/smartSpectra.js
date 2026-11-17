@@ -1,4 +1,10 @@
-import {SmartSpectraSDK, breathingMetrics, cardioMetrics} from '@smartspectra/node-sdk/renderer';
+import {
+    SmartSpectraSDK,
+    SmartSpectraErrorCode,
+    ValidationCode,
+    breathingMetrics,
+    cardioMetrics
+} from '@smartspectra/node-sdk/renderer';
 import { decodeMetrics } from '@smartspectra/node-sdk/messages';
 
 function latestValue(samples) {
@@ -8,21 +14,25 @@ function latestValue(samples) {
 }
 
 export function createSmartSpectraSession(apiKey, callbacks) {
-    const sdk = new SmartSpectraSDK({ 
-        apiKey, requestedMetrics: [ 
-            ...breathingMetrics, 
+    const sdk = new SmartSpectraSDK({
+        apiKey,
+        requestedMetrics: [
+            ...breathingMetrics,
             ...cardioMetrics
         ],
         enableTelemetry: false,
         enableAccumulatedOutput: false
     });
 
-    sdk.on('streamAvailable', (stream) => { 
-        callbacks.onStream?.(stream); 
+    sdk.on('streamAvailable', (stream) => {
+        callbacks.onStream?.(stream);
     });
 
     sdk.on('validationStatus', (code, timestamp, hint) => {
-        callbacks.onValidation?.(hint || 'Adjust your position or lighting');
+        callbacks.onValidation?.({
+            ok: code === ValidationCode.kOk,
+            hint: hint || 'Adjust your position or lighting'
+        });
     });
 
     sdk.on('metrics', (buffer) => {
@@ -34,12 +44,15 @@ export function createSmartSpectraSession(apiKey, callbacks) {
                 breathingTrace: metrics.breathing?.upperTrace ?? []
             });
         } catch (error) {
-          callbacks.onError?.(error);
+            callbacks.onError?.(error);
         }
     });
 
     sdk.on('error', (code, message) => {
-        callbacks.onError?.( new Error(message || `SmartSpectra error ${code}`));
+        const error = new Error(message || `SmartSpectra error ${code}`);
+        error.isAuthError = code === SmartSpectraErrorCode.kAuthenticationFailed;
+        callbacks.onError?.(error);
     });
+
     return sdk;
 }

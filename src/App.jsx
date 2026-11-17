@@ -1,208 +1,194 @@
-
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSmartSpectra } from './hooks/useSmartSpectra';
-import BreathingOrb from './components/BreathingOrb';
+import { useConfig } from './hooks/useConfig';
+import { useVoice } from './hooks/useVoice';
+import { useAiInsight } from './hooks/useAiInsight';
+import { exportSessionCsv } from './lib/exportSession';
+import { dashboardStats } from './lib/stats';
+import { dailyTip } from './lib/advice';
+import { homeMessage } from './lib/guideScript';
+import { clearSessions, loadPrefs, loadSessions, savePrefs, saveSessions } from './lib/storage';
+import Dashboard from './components/Dashboard';
+import StartScreen from './components/StartScreen';
+import LiveScreen from './components/LiveScreen';
+import SummaryScreen from './components/SummaryScreen';
+import HistoryScreen from './components/HistoryScreen';
 import './App.css';
 
-function formatTime(totalSeconds) {
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-}
-
-function formatReading(value) {
-  return Number.isFinite(value) ? Math.round(value) : '—';
-}
-
-function SummaryCard({ summary }) {
-  if (!summary) return null;
-  return (
-    <section className="summary-card" aria-labelledby="summary-title">
-      <span className="section-label">SESSION COMPLETE</span>
-      <h2 id="summary-title">Your session summary</h2>
-      <p className="summary-duration">
-        Duration: {formatTime(summary.duration)}
-      </p>
-
-      {!summary.available ? (
-        <p className="summary-message">{summary.message}</p>
-      ) : (
-        <>
-          <p className="summary-description">
-            A simple comparison of your first and last minute.
-          </p>
-
-          <div className="summary-table">
-            <div className="summary-head">
-              <span>Measurement</span>
-              <span>First min</span>
-              <span>Last min</span>
-            </div>
-
-            <div className="summary-row">
-              <span>Pulse (BPM)</span>
-              <strong>{formatReading(summary.firstPulse)}</strong>
-              <strong>{formatReading(summary.lastPulse)}</strong>
-            </div>
-
-            <div className="summary-row">
-              <span>Breathing (br/min)</span>
-              <strong>{formatReading(summary.firstBreathing)}</strong>
-              <strong>{formatReading(summary.lastBreathing)}</strong>
-            </div>
-          </div>
-        </>
-      )}
-
-      <p className="summary-note">
-        These measurements are for general wellness only.
-        They are not a medical assessment.
-      </p>
-    </section>
-  );
-}
-
 export default function App() {
+  const config = useConfig();
+  const [screen, setScreen] = useState('home');
+  const [historyFrom, setHistoryFrom] = useState('home');
   const [apiKey, setApiKey] = useState('');
-  const [consent, setConsent] = useState(false);
-  const videoRef = useRef(null);
-  const { status, hint, breathingRate, pulseRate, breathingTrace, stream, error, elapsedSeconds, summary,  startSession, stopSession } = useSmartSpectra();
-  const isActive = [ 'starting', 'running', 'stopping',  'error'].includes(status);
-  const isCalibrating = status === 'starting' || (status === 'running' && (breathingRate === null || pulseRate === null));
+  const [keyRejected, setKeyRejected] = useState(false);
+  const [cameraAllowed, setCameraAllowed] = useState(false);
+  const [prefs, setPrefs] = useState(loadPrefs);
+  const [history, setHistory] = useState(loadSessions);
+  const [viewedId, setViewedId] = useState(null);
+  const [shortSummary, setShortSummary] = useState(null);
+  const stoppingRef = useRef(false);
+  const session = useSmartSpectra();
+  const { authFailed, stopSession, clearError } = session;
+  const voice = useVoice(prefs.voice, () => updatePrefs({ voice: !prefs.voice }), prefs.voiceName, config.ttsEnabled);
+  const viewed = history.find((s) => s.id === viewedId) ?? null;
+  const stats = useMemo(() => dashboardStats(history, prefs.goalSessions), [history, prefs.goalSessions]);
+  const tip = useMemo(() => dailyTip(), []);
+  const needsKey = !config.presageKey || keyRejected;
+
+  function updatePrefs(patch) {
+    setPrefs((current) => {
+      const next = { ...current, ...patch };
+      savePrefs(next);
+      return next;
+    });
+  }
 
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    video.srcObject = stream;
-    if (stream) {
-      video.play().catch((err) => {
-        console.warn('Camera preview:', err);
-      });
+    if (prefs.saveResults) saveSessions(history);
+  }, [history, prefs.saveResults]);
+
+  useEffect(() => {
+    if (authFailed && screen === 'live') {
+      if (config.presageKey) setKeyRejected(true);
+      stopSession().then(() => setScreen('start'));
     }
+  }, [authFailed, screen, stopSession, config.presageKey]);
 
-    return () => {
-      video.srcObject = null;
-    };
-  }, [stream]);
-
-  async function handleStart() {
-    if (!consent || !apiKey.trim() || isActive) return;
-    const key = apiKey;
+  function openStart() {
+    clearError();
     setApiKey('');
-    await startSession(key);
+    setCameraAllowed(false);
+    setScreen('start');
+  }
+
+  async function startSession() {
+    const key = needsKey ? apiKey.trim() : config.presageKey;
+    if (!cameraAllowed || !key) return;
+    setApiKey('');
+    setScreen('live');
+    const result = await session.startSession(key);
+    if (result === 'failed') {
+      if (needsKey) setApiKey(key); 
+      setScreen('start');
+    }
+  }
+
+  async function finishSession() {
+    if (stoppingRef.current) return;
+    stoppingRef.current = true;
+    try {
+      const hadError = Boolean(session.error);
+      const summary = await stopSession();
+      if (summary) {
+        const entry = { ...summary, ephemeral: !prefs.saveResults };
+        if (entry.available) setHistory((items) => [entry, ...items]);
+        setViewedId(entry.id);
+        setShortSummary(entry.available ? null : entry);
+        setScreen('summary');
+      } else {
+        setScreen(hadError ? 'start' : 'home');
+      }
+    } finally {
+      stoppingRef.current = false;
+    }
+  }
+
+  const shown = viewed ?? shortSummary;
+
+  function attachAi(id, ai) {
+    setHistory((items) => items.map((s) => (s.id === id ? { ...s, ai } : s)));
+  }
+  const aiStatus = useAiInsight(shown, config.aiEnabled, attachAi);
+
+  function openHistory(from) {
+    setHistoryFrom(from);
+    setScreen('history');
+  }
+
+  function openSession(s) {
+    setShortSummary(null);
+    setViewedId(s.id);
+    setScreen('summary');
+  }
+
+  function deleteAll() {
+    if (!window.confirm('Delete all saved results from this computer?')) return;
+    clearSessions();
+    setHistory([]);
+    setViewedId(null);
   }
 
   return (
     <div className="app">
-      <header className="app-header">
-        <span className="app-label">
-          HUMAN SENSING EXPERIENCE
-        </span>
+      {screen === 'home' && (
+        <Dashboard
+          stats={stats}
+          sessions={history}
+          message={homeMessage(stats)}
+          voice={voice}
+          tip={tip}
+          saveOn={prefs.saveResults}
+          onStart={openStart}
+          onHistory={() => openHistory('home')}
+          onOpen={openSession}
+          onDeleteAll={deleteAll}
+          onVoiceChange={(name) => { updatePrefs({ voiceName: name }); voice.preview(name); }}
+          voiceName={prefs.voiceName}
+          onGoalChange={(d) => updatePrefs({ goalSessions: Math.min(7, Math.max(1, prefs.goalSessions + d)) })}
+        />
+      )}
 
-        <h1>Breathe With Me</h1>
+      {screen === 'start' && (
+        <StartScreen
+          needsKey={needsKey}
+          apiKey={apiKey}
+          onKeyChange={(value) => { setApiKey(value); if (session.error) clearError(); }}
+          allowed={cameraAllowed}
+          onToggleCamera={() => setCameraAllowed((v) => !v)}
+          saveResults={prefs.saveResults}
+          onToggleSave={() => updatePrefs({ saveResults: !prefs.saveResults })}
+          onStart={startSession}
+          onBack={() => { clearError(); setApiKey(''); setScreen('home'); }}
+          error={session.error}
+          voice={voice}
+        />
+      )}
 
-        <p>A quiet space to reconnect with your breathing.</p>
-      </header>
+      {screen === 'live' && (
+        <LiveScreen
+          status={session.status}
+          hint={session.hint}
+          error={session.error}
+          elapsedSeconds={session.elapsedSeconds}
+          breathingRate={session.breathingRate}
+          pulseRate={session.pulseRate}
+          breathingTrace={session.breathingTrace}
+          stream={session.stream}
+          onStop={finishSession}
+          voice={voice}
+        />
+      )}
 
-      <main className="app-content">
-        <section className="session" aria-label="Breathing session">
-          <BreathingOrb
-            trace={breathingTrace}
-            isRunning={status === 'running'}
-          />
+      {screen === 'summary' && shown && (
+        <SummaryScreen
+          key={shown.id}
+          summary={shown}
+          aiStatus={aiStatus}
+          voice={voice}
+          onExport={() => exportSessionCsv(shown)}
+          onReturn={() => { setShortSummary(null); setScreen('home'); }}
+          onHistory={() => openHistory('summary')}
+        />
+      )}
 
-          <h2>Your breathing, visualized.</h2>
-
-          <p className="session-description">
-            Discover your natural breathing rhythm
-            through a real-time visual experience.
-          </p>
-
-          <p className="session-status" role="status">
-            {status === 'idle' && 'Ready to begin'}
-            {status === 'starting' && 'Starting camera...'}
-            {status === 'running' && 'Session running'}
-            {status === 'stopping' && 'Stopping camera...'}
-            {status === 'error' && 'Session error'}
-          </p>
-
-          {isActive && hint && (
-            <p className="validation-hint">{hint}</p>
-          )}
-
-          {error && (
-            <p className="error-message" role="alert">
-              {error}
-            </p>
-          )}
-
-          {status === 'running' && (
-            <div className="session-info">
-              <span className="session-timer">
-                {formatTime(elapsedSeconds)}
-              </span>
-
-              <span className="session-state"> {isCalibrating ? 'Calibrating measurements...' : 'Live measurements'}</span>
-            </div>
-          )}
-
-          {!isActive && (
-            <div className="consent-panel">
-              <label htmlFor="api-key">
-                Presage API key
-              </label>
-
-              <input id="api-key" type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)}
-                placeholder="Enter your API key"
-                autoComplete="off"/>
-
-              <label className="consent-option">
-                <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
-
-                <span>
-                  I consent to camera access for live wellness measurements. Measurements remain in memory and are not saved.  Optional SDK telemetry is disabled. Presage authentication requires a networkconnection.
-                </span>
-              </label>
-
-              <button className="start-btn" onClick={handleStart} disabled={!consent || !apiKey.trim()} >
-                Start Session
-              </button>
-            </div>
-          )}
-
-          <button className="stop-btn" onClick={stopSession} disabled={!isActive || status === 'stopping'}>
-            Stop Session
-          </button>
-
-          <div className="measurements">
-            <div className="measurement">
-              <span>Breathing Rate</span>
-              <strong>{formatReading(breathingRate)}</strong>
-              <small>breaths/min</small>
-            </div>
-
-            <div className="measurement">
-              <span>Pulse Rate</span>
-              <strong>{formatReading(pulseRate)}</strong>
-              <small>BPM</small>
-            </div>
-          </div>
-
-          {stream && (
-            <div className="camera-container" hidden={!stream}>
-              <video ref={videoRef} autoPlay muted playsInline aria-label="Live camera preview"/>
-            </div>
-          )}
-
-          {!isActive && (
-            <SummaryCard summary={summary} />
-          )}
-        </section>
-      </main>
-
-      <footer className="app-footer">
-        General wellness tool, not a medical device.
-      </footer>
+      {screen === 'history' && (
+        <HistoryScreen
+          sessions={history}
+          onOpen={openSession}
+          onBack={() => setScreen(historyFrom === 'summary' && !shown ? 'home' : historyFrom)}
+          voice={voice}
+        />
+      )}
     </div>
   );
 }
