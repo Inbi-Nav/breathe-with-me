@@ -135,7 +135,6 @@ export function buildAdvice(session, date = new Date()) {
     tone: coherenceLabel(coherence),
     narration: parts.join(' '),
     caution,
-    quote: pickQuote(session.id),
     cards: [
       { id: 'move', title: 'Move a little', icon: 'walk', items: move },
       { id: 'breathe', title: 'Breathing practice', icon: 'wind', items: breathe },

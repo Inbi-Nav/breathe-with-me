@@ -1332,16 +1332,7 @@
 .ai-loading svg {
   animation: twinkle 1.2s ease-in-out infinite;
 }
-.quote {
-  margin: 0;
-  padding: 22px 28px;
-  border-radius: 16px;
-  background: rgba(230, 194, 122, 0.08);
-  border-left: 4px solid var(--gold);
-  font-size: 22px;
-  line-height: 1.5;
-  color: #f3e2b9;
-}
+
 .summary-foot {
   display: flex;
   align-items: center;
@@ -1528,7 +1519,6 @@
 .summary-head h1,
 .step h2,
 .shell-brand h1,
-.quote,
 .plan-title,
 .tip-card strong,
 .empty p {
@@ -1549,10 +1539,7 @@
   font-size: 26px;
   margin-top: 18px;
 }
-.quote {
-  font-weight: 500;
-  font-style: italic;
-}
+
 .plan-title {
   font-size: 26px;
 }

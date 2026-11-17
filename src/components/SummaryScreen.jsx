@@ -61,7 +61,6 @@ export default function SummaryScreen({ summary, aiStatus, voice, onExport, onRe
   const label = coherenceLabel(summary.coherence);
   const total = Math.max(1, summary.phases.deep + summary.phases.calm + summary.phases.active);
   const narration = summary.ai?.summary || advice.narration;
-  const quote = summary.ai?.motivation || advice.quote;
 
   return (
     <div className="page summary">
@@ -150,7 +149,6 @@ export default function SummaryScreen({ summary, aiStatus, voice, onExport, onRe
           </div>
         )}
 
-        <blockquote className="quote">“{quote}”</blockquote>
       </section>
 
       {/* Footer row */}
